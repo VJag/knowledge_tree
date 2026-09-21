@@ -22,6 +22,12 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 class AuthService:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -47,10 +53,10 @@ class AuthService:
                 (normalized,),
             ).fetchone()
 
-            if row and row["window_start"] > now - window:
+            if row and _as_utc(row["window_start"]) > now - window:
                 if int(row["request_count"]) >= 5:
                     raise ValueError("Too many codes requested. Try again in a few minutes.")
-                window_start = row["window_start"]
+                window_start = _as_utc(row["window_start"])
                 request_count = int(row["request_count"]) + 1
             else:
                 window_start = now

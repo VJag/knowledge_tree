@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -18,6 +19,7 @@ from app.models import User
 from app.services.auth_service import AuthService, OTP_REQUEST_MESSAGE
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+logger = logging.getLogger("knowledgetree.auth.routes")
 
 
 class OtpRequestBody(BaseModel):
@@ -38,6 +40,7 @@ def otp_request(body: OtpRequestBody, request: Request):
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
+        logger.exception("otp_request_failed email=%s", body.email)
         return JSONResponse({"error": "Sign-in is temporarily unavailable."}, status_code=503)
     return {"ok": True, "message": message or OTP_REQUEST_MESSAGE}
 
@@ -51,6 +54,7 @@ def otp_verify(body: OtpVerifyBody, request: Request):
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception:
+        logger.exception("otp_verify_failed email=%s", body.email)
         return JSONResponse({"error": "Sign-in is temporarily unavailable."}, status_code=503)
 
     response = JSONResponse({"ok": True, "user": {"email": user.email, "name": user.name}})

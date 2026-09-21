@@ -93,8 +93,7 @@ export const HELP_TOPICS = [
           'The canvas colour and stage icon always reflect the most recent transition.',
         ],
         bullets: [
-          'Moving up (e.g. Gap → Theory, Theory → Practising) asks for a short note — what made you ready to move.',
-          'Moving down (e.g. Learnt back to Gap) allows an optional note — what regressed or needs revisiting.',
+          'A short note is optional on every move — why you moved up, down, or stayed ready to progress.',
           'Tapping the canvas stage icon cycles forward; the side-panel stepper jumps to any stage. Both use the same transition flow.',
         ],
       },

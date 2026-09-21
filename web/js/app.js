@@ -22,7 +22,6 @@ import {
   isReadOnly,
   ensureTopicMeta,
   effectiveLevel,
-  isMovingUp,
   recordTransition,
   formatDuration,
   dwellBeforeTransition,
@@ -253,7 +252,7 @@ function closeTransition(result) {
   }
 }
 
-function showTransitionDialog({ fromLevel, toLevel, movingUp, fromSuggested, topicName }) {
+function showTransitionDialog({ fromLevel, toLevel, fromSuggested, topicName }) {
   return new Promise((resolve) => {
     if (transitionResolver) transitionResolver(null);
     transitionResolver = resolve;
@@ -264,13 +263,12 @@ function showTransitionDialog({ fromLevel, toLevel, movingUp, fromSuggested, top
         : LEVEL_SHORT[fromLevel];
     $('transitionTitle').textContent = 'Move to ' + LEVEL_SHORT[toLevel];
     $('transitionHint').textContent = '“' + topicName + '” · ' + fromText + ' → ' + LEVEL_SHORT[toLevel];
-    $('transitionNoteLabel').textContent = movingUp ? 'What changed?' : 'Note (optional)';
+    $('transitionNoteLabel').textContent = 'Short note (optional)';
     $('transitionNote').placeholder = 'Anything — why you moved';
     $('transitionNote').value = '';
     message('transitionMessage', '');
     showDialog('transitionDialog');
     $('transitionNote').focus();
-    $('transitionForm').dataset.movingUp = movingUp ? '1' : '0';
   });
 }
 
@@ -285,16 +283,13 @@ async function requestLevelChange(n, toLevel) {
     notify('Kept as gap.');
     return;
   }
-  const movingUp = isMovingUp(fromLevel, toLevel, fromSuggested);
   const note = await showTransitionDialog({
     fromLevel,
     toLevel,
-    movingUp,
     fromSuggested,
     topicName: n.name,
   });
   if (note === null) return;
-  if (movingUp && !note.trim()) return;
   recordTransition(n, toLevel, note);
   commit();
   notify('Moved to ' + LEVEL_SHORT[toLevel] + '.');
@@ -724,9 +719,7 @@ function renderCanvas() {
         esc('Advance learning stage for ' + n.name) +
         '">' +
         stageSvg(n.level, n.suggested) +
-        '</button>' +
-        ((n.children || []).length ? '<span class="n-count">' + n.children.length + ' branches</span>' : '') +
-        '</div><div class="n-name">' +
+        '</button></div><div class="n-name">' +
         esc(n.name) +
         '</div><span class="n-status">' +
         esc(levelLabel(n)) +
@@ -1323,13 +1316,7 @@ async function boot() {
   $('transitionDialog').addEventListener('cancel', () => closeTransition(null));
   $('transitionForm').onsubmit = (ev) => {
     ev.preventDefault();
-    const movingUp = $('transitionForm').dataset.movingUp === '1';
-    const note = $('transitionNote').value.trim();
-    if (movingUp && !note) {
-      message('transitionMessage', 'Add a short note about what changed.', true);
-      return;
-    }
-    closeTransition(note);
+    closeTransition($('transitionNote').value.trim());
   };
   document.querySelectorAll('[data-mode]').forEach((b) => {
     b.onclick = () => chooseMode(b.dataset.mode);
