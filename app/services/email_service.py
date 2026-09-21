@@ -80,6 +80,124 @@ class EmailService:
         )
         self._send(to_email=to_email, subject=subject, html_body=html_body, text=text)
 
+    def send_progress_update(
+        self,
+        *,
+        to_email: str,
+        owner_email: str,
+        tree_name: str,
+        app_url: str | None = None,
+    ) -> None:
+        safe_tree = html.escape(tree_name)
+        safe_owner = html.escape(owner_email)
+        link = html.escape((app_url or "").rstrip("/") or "https://knowledgetree.app")
+        subject = f'{owner_email} updated progress on “{tree_name}”'
+        html_body = f"""
+<p>Hi,</p>
+<p><strong>{safe_owner}</strong> synced new progress on a map you can view:</p>
+<p style="font-size:18px;font-weight:700;margin:16px 0">{safe_tree}</p>
+<p>Open KnowledgeTree, sign in as <strong>{html.escape(to_email)}</strong>, and tap <strong>Sync</strong> to pull the latest levels, notes, and history.</p>
+<p><a href="{link}">Open KnowledgeTree</a></p>
+<p>— KnowledgeTree</p>
+""".strip()
+        text = (
+            f"Hi,\n\n"
+            f"{owner_email} synced new progress on “{tree_name}”.\n\n"
+            f"Sign in as {to_email} and tap Sync to see the latest map.\n\n"
+            f"Open KnowledgeTree: {link}\n\n"
+            "— KnowledgeTree"
+        )
+        self._send(to_email=to_email, subject=subject, html_body=html_body, text=text)
+
+    def send_collaborator_update(
+        self,
+        *,
+        to_email: str,
+        editor_email: str,
+        tree_name: str,
+        app_url: str | None = None,
+    ) -> None:
+        safe_tree = html.escape(tree_name)
+        safe_editor = html.escape(editor_email)
+        link = html.escape((app_url or "").rstrip("/") or "https://knowledgetree.app")
+        subject = f'{editor_email} updated “{tree_name}”'
+        html_body = f"""
+<p>Hi,</p>
+<p><strong>{safe_editor}</strong> synced changes to your shared map:</p>
+<p style="font-size:18px;font-weight:700;margin:16px 0">{safe_tree}</p>
+<p>Tap <strong>Sync</strong> in KnowledgeTree to review their updates.</p>
+<p><a href="{link}">Open KnowledgeTree</a></p>
+<p>— KnowledgeTree</p>
+""".strip()
+        text = (
+            f"Hi,\n\n"
+            f"{editor_email} synced changes to “{tree_name}”.\n\n"
+            f"Tap Sync in KnowledgeTree to review.\n\n"
+            f"Open KnowledgeTree: {link}\n\n"
+            "— KnowledgeTree"
+        )
+        self._send(to_email=to_email, subject=subject, html_body=html_body, text=text)
+
+    def send_share_removed(
+        self,
+        *,
+        to_email: str,
+        owner_email: str,
+        tree_name: str,
+        app_url: str | None = None,
+    ) -> None:
+        safe_tree = html.escape(tree_name)
+        safe_owner = html.escape(owner_email)
+        link = html.escape((app_url or "").rstrip("/") or "https://knowledgetree.app")
+        subject = f'Access removed from “{tree_name}”'
+        html_body = f"""
+<p>Hi,</p>
+<p><strong>{safe_owner}</strong> removed your access to this map on KnowledgeTree:</p>
+<p style="font-size:18px;font-weight:700;margin:16px 0">{safe_tree}</p>
+<p>Any copy already on your device stays until you delete it locally.</p>
+<p><a href="{link}">Open KnowledgeTree</a></p>
+<p>— KnowledgeTree</p>
+""".strip()
+        text = (
+            f"Hi,\n\n"
+            f"{owner_email} removed your access to “{tree_name}”.\n\n"
+            f"Open KnowledgeTree: {link}\n\n"
+            "— KnowledgeTree"
+        )
+        self._send(to_email=to_email, subject=subject, html_body=html_body, text=text)
+
+    def send_share_permission_changed(
+        self,
+        *,
+        to_email: str,
+        owner_email: str,
+        tree_name: str,
+        permission: str,
+        app_url: str | None = None,
+    ) -> None:
+        safe_tree = html.escape(tree_name)
+        safe_owner = html.escape(owner_email)
+        access_label = "Can edit" if permission == "edit" else "View progress"
+        link = html.escape((app_url or "").rstrip("/") or "https://knowledgetree.app")
+        subject = f'Access updated on “{tree_name}”'
+        html_body = f"""
+<p>Hi,</p>
+<p><strong>{safe_owner}</strong> changed your access on KnowledgeTree:</p>
+<p style="font-size:18px;font-weight:700;margin:16px 0">{safe_tree}</p>
+<p>Your access is now: <strong>{access_label}</strong>.</p>
+<p>Sign in and tap <strong>Sync</strong> to refresh the map.</p>
+<p><a href="{link}">Open KnowledgeTree</a></p>
+<p>— KnowledgeTree</p>
+""".strip()
+        text = (
+            f"Hi,\n\n"
+            f"{owner_email} changed your access on “{tree_name}” to {access_label}.\n\n"
+            f"Sign in and tap Sync.\n\n"
+            f"Open KnowledgeTree: {link}\n\n"
+            "— KnowledgeTree"
+        )
+        self._send(to_email=to_email, subject=subject, html_body=html_body, text=text)
+
     def _send(self, *, to_email: str, subject: str, html_body: str, text: str) -> None:
         api_key = (self.settings.resend_api_key or "").strip()
         from_email = (self.settings.email_from or "").strip()

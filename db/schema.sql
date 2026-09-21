@@ -51,3 +51,13 @@ CREATE TABLE IF NOT EXISTS tree_shares (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tree_shares_user_id ON tree_shares(user_id);
+
+CREATE TABLE IF NOT EXISTS tree_update_notices (
+  tree_id UUID NOT NULL REFERENCES trees(id) ON DELETE CASCADE,
+  recipient_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  notice_kind TEXT NOT NULL CHECK (notice_kind IN ('progress_update', 'collaborator_update')),
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (tree_id, recipient_user_id, notice_kind)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tree_update_notices_sent_at ON tree_update_notices(sent_at);

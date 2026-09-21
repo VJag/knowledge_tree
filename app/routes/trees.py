@@ -35,8 +35,9 @@ class SyncBody(BaseModel):
 def sync_trees(body: SyncBody, request: Request, user: User = Depends(require_user)):
     service = TreesService(get_settings(request))
     payload = [item.model_dump() for item in body.trees]
+    app_url = str(request.base_url).rstrip("/")
     try:
-        result = service.sync(user, trees=payload, force=body.force)
+        result = service.sync(user, trees=payload, force=body.force, app_url=app_url)
     except PermissionError as exc:
         return JSONResponse({"error": str(exc)}, status_code=403)
     except ValueError as exc:
@@ -114,7 +115,8 @@ def remove_share(
 ):
     service = TreesService(get_settings(request))
     try:
-        service.remove_share(user, tree_id, email=email)
+        app_url = str(request.base_url).rstrip("/")
+        service.remove_share(user, tree_id, email=email, app_url=app_url)
     except PermissionError as exc:
         return JSONResponse({"error": str(exc)}, status_code=403)
     return {"ok": True}

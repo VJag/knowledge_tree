@@ -25,6 +25,35 @@ export async function syncToCloud(trees, { force = false } = {}) {
   });
 }
 
+export async function fetchRemoteTrees() {
+  return api('/api/trees');
+}
+
+let remoteVersionsByCloudId = {};
+
+export function setRemoteVersionsFromList(remoteTrees) {
+  remoteVersionsByCloudId = {};
+  for (const t of remoteTrees || []) {
+    if (t.cloudId) remoteVersionsByCloudId[t.cloudId] = t.version;
+  }
+}
+
+export function treeHasCloudUpdate(t) {
+  if (!t?.cloudId || t.syncDirty) return false;
+  const remote = remoteVersionsByCloudId[t.cloudId];
+  return remote != null && remote > (t.cloudVersion || 0);
+}
+
+export function anyCloudUpdates(trees) {
+  return trees.some(treeHasCloudUpdate);
+}
+
+export async function refreshCloudVersions() {
+  const data = await fetchRemoteTrees();
+  setRemoteVersionsFromList(data.trees);
+  return data.trees;
+}
+
 function applyRemoteMeta(local, remote) {
   local.cloudId = remote.cloudId;
   local.cloudVersion = remote.version;
@@ -103,10 +132,12 @@ export function mergeSyncResult(trees, result) {
 
   const deduped = dedupeWorkspaceTrees(trees);
   trees.splice(0, trees.length, ...deduped);
+  setRemoteVersionsFromList(result.remote || []);
 
   return {
     conflicts: result.conflicts || [],
     uploaded: (result.uploaded || []).length,
+    emailsSent: result.emailsSent || null,
   };
 }
 

@@ -161,17 +161,18 @@ def test_sync_creates_new_trees(settings, user):
     service = TreesService(settings)
     created = _access(id="new-1", version=1)
     with patch.object(service, "create_tree", return_value=created) as mock_create:
-        with patch.object(service, "list_accessible", return_value=[]):
-            result = service.sync(
-                user,
-                trees=[
-                    {
-                        "localId": "local-1",
-                        "document": created.document,
-                        "name": "My tree",
-                    }
-                ],
-            )
+        with patch.object(service, "_notify_after_tree_update", return_value={"progress": 0, "collaborator": 0}):
+            with patch.object(service, "list_accessible", return_value=[]):
+                result = service.sync(
+                    user,
+                    trees=[
+                        {
+                            "localId": "local-1",
+                            "document": created.document,
+                            "name": "My tree",
+                        }
+                    ],
+                )
     mock_create.assert_called_once()
     assert len(result["uploaded"]) == 1
     assert result["uploaded"][0]["cloudId"] == "new-1"
@@ -200,6 +201,28 @@ def test_sync_reports_conflict(settings, user):
             )
     assert len(result["conflicts"]) == 1
     assert result["conflicts"][0]["serverVersion"] == 5
+
+
+@patch("app.services.trees_service.EmailService")
+def test_notify_view_sharees_on_owner_update(mock_mailer_cls, settings, user, patch_trees_get_conn):
+    mock_mailer_cls.return_value.configured = True
+    view_sharee = {"id": "guest-1", "email": "mentee@example.com"}
+    share_cursor = MagicMock()
+    share_cursor.fetchall.return_value = [view_sharee]
+    notice_cursor = MagicMock()
+    notice_cursor.fetchone.return_value = None
+    conn = MockConn([share_cursor, notice_cursor, MagicMock()])
+    service = TreesService(settings)
+    with patch_trees_get_conn(conn):
+        sent = service._email_view_sharees_progress_update(
+            user,
+            tree_id="tree-1",
+            tree_name="My tree",
+            app_url="http://localhost:8000",
+            mailer=mock_mailer_cls.return_value,
+        )
+    assert sent == 1
+    mock_mailer_cls.return_value.send_progress_update.assert_called_once()
 
 
 def test_update_tree_conflict(settings, user, patch_trees_get_conn):

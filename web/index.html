@@ -96,7 +96,8 @@
         </button>
         <button class="icon-btn" id="syncBtn" type="button" title="Sync to cloud" aria-label="Sync to cloud">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-          <span class="sync-dot" id="syncDot" hidden aria-hidden="true"></span>
+          <span class="sync-dot sync-dot-upload" id="syncUploadDot" hidden aria-hidden="true"></span>
+          <span class="sync-dot sync-dot-download" id="syncCloudDot" hidden aria-hidden="true"></span>
         </button>
         <div class="menu-wrap">
           <button class="icon-btn" id="topMenuBtn" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">
@@ -252,23 +253,52 @@
   </form>
 </dialog>
 
-<dialog id="transitionDialog" aria-labelledby="transitionTitle" class="transition-dialog">
-  <form id="transitionForm" class="dialog-body">
+<dialog id="topicWorkspaceDialog" aria-labelledby="twTitle" class="topic-workspace-dialog">
+  <form id="topicWorkspaceForm" class="dialog-body topic-workspace-body">
     <div class="dialog-top">
-      <div>
-        <h2 id="transitionTitle">Record this move</h2>
-        <p id="transitionHint"></p>
+      <div class="tw-head">
+        <p class="tw-eyebrow" id="twEyebrow">Topic</p>
+        <h2 id="twTitle">Learning notes</h2>
+        <p id="twHint"></p>
+        <div class="tw-move-pill" id="twMovePill" hidden>
+          <span id="twMoveFrom"></span>
+          <span class="tw-move-arrow" aria-hidden="true">→</span>
+          <span id="twMoveTo"></span>
+        </div>
       </div>
-      <button type="button" class="dialog-close" id="transitionClose" aria-label="Close">×</button>
+      <button type="button" class="dialog-close" id="twClose" aria-label="Close">×</button>
     </div>
-    <div class="modal-field">
-      <label for="transitionNote" id="transitionNoteLabel">Short note (optional)</label>
-      <textarea id="transitionNote" maxlength="500" rows="4" placeholder="Anything — why you moved"></textarea>
+    <div class="tw-body">
+      <div class="tw-grid">
+        <section class="tw-panel" aria-labelledby="twNotesHeading">
+          <div class="tw-panel-head">
+            <h3 id="twNotesHeading">Learning material</h3>
+            <span class="tw-count" id="twNotesCount"></span>
+          </div>
+          <div class="tw-scroll tw-notes-scroll" id="twNotesList"></div>
+        </section>
+        <section class="tw-panel" aria-labelledby="twHistoryHeading">
+          <div class="tw-panel-head">
+            <h3 id="twHistoryHeading">Level history</h3>
+          </div>
+          <div class="tw-scroll tw-history-scroll" id="twHistoryList"></div>
+        </section>
+      </div>
+      <div class="tw-compose" id="twComposeSection">
+        <div class="tw-compose-field" id="twAddNoteSection">
+          <label for="twLearningNote">Add learning material</label>
+          <textarea id="twLearningNote" maxlength="2000" rows="3" placeholder="Paste a link, summary, or reminder…"></textarea>
+        </div>
+        <div class="tw-compose-field" id="twTransitionBlock" hidden>
+          <label for="twMoveNote" id="twMoveNoteLabel">Note on this move (optional)</label>
+          <textarea id="twMoveNote" maxlength="500" rows="3" placeholder="Why you're moving to this stage…"></textarea>
+        </div>
+      </div>
     </div>
-    <div class="form-message" id="transitionMessage" role="status"></div>
+    <div class="form-message" id="twMessage" role="status"></div>
     <div class="dialog-footer">
-      <button type="button" class="btn ghost" id="transitionCancel">Cancel</button>
-      <button type="submit" class="btn primary" id="transitionOk">Confirm move</button>
+      <button type="button" class="btn ghost" id="twCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="twSubmit">Confirm move</button>
     </div>
   </form>
 </dialog>
@@ -298,12 +328,25 @@
     <div class="share-invite">
       <h3 class="share-section-title">Invite someone</h3>
       <div class="modal-field"><label for="shareEmail">Email</label><input id="shareEmail" type="email" required placeholder="collaborator@example.com" autocomplete="email"></div>
-      <div class="modal-field"><label for="sharePermission">Permission</label>
-        <select id="sharePermission">
-          <option value="view">View progress — map, levels, notes, and history</option>
-          <option value="edit">Can edit — add, change, and delete topics</option>
-        </select>
-      </div>
+      <fieldset class="share-perm-field">
+        <legend class="share-perm-legend">Permission</legend>
+        <div class="share-perm-choices">
+          <label class="share-perm-choice">
+            <input type="radio" name="sharePermission" value="view" checked>
+            <span class="share-perm-choice-body">
+              <strong>View progress</strong>
+              <small>Map, levels, notes, and history — read only</small>
+            </span>
+          </label>
+          <label class="share-perm-choice">
+            <input type="radio" name="sharePermission" value="edit">
+            <span class="share-perm-choice-body">
+              <strong>Can edit</strong>
+              <small>Add, change, and delete topics</small>
+            </span>
+          </label>
+        </div>
+      </fieldset>
     </div>
     <div class="share-access">
       <h3 class="share-section-title">People with access</h3>

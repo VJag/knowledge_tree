@@ -66,6 +66,57 @@ def test_send_includes_reply_to(mock_send, settings):
 
 
 @patch("app.services.email_service.resend.Emails.send")
+def test_send_progress_update(mock_send, settings):
+    mock_send.return_value = {"id": "msg-5"}
+    EmailService(settings).send_progress_update(
+        to_email="mentee@example.com",
+        owner_email="mentor@example.com",
+        tree_name="AI map",
+    )
+    params = mock_send.call_args[0][0]
+    assert "updated progress" in params["subject"]
+    assert "Sync" in params["html"]
+
+
+@patch("app.services.email_service.resend.Emails.send")
+def test_send_collaborator_update(mock_send, settings):
+    mock_send.return_value = {"id": "msg-5b"}
+    EmailService(settings).send_collaborator_update(
+        to_email="owner@example.com",
+        editor_email="editor@example.com",
+        tree_name="Shared map",
+    )
+    params = mock_send.call_args[0][0]
+    assert "editor@example.com" in params["subject"]
+    assert "Sync" in params["html"]
+
+
+@patch("app.services.email_service.resend.Emails.send")
+def test_send_share_permission_changed(mock_send, settings):
+    mock_send.return_value = {"id": "msg-5c"}
+    EmailService(settings).send_share_permission_changed(
+        to_email="guest@example.com",
+        owner_email="owner@example.com",
+        tree_name="Tree",
+        permission="edit",
+    )
+    params = mock_send.call_args[0][0]
+    assert "Access updated" in params["subject"]
+    assert "Can edit" in params["html"]
+
+
+@patch("app.services.email_service.resend.Emails.send")
+def test_send_share_removed(mock_send, settings):
+    mock_send.return_value = {"id": "msg-6"}
+    EmailService(settings).send_share_removed(
+        to_email="guest@example.com",
+        owner_email="owner@example.com",
+        tree_name="Tree",
+    )
+    assert "removed" in mock_send.call_args[0][0]["subject"].lower()
+
+
+@patch("app.services.email_service.resend.Emails.send")
 def test_send_resend_error(mock_send, settings):
     from resend.exceptions import ResendError
 

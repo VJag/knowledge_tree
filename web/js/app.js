@@ -43,6 +43,9 @@ import {
   syncToCloud,
   mergeSyncResult,
   dedupeWorkspaceTrees,
+  refreshCloudVersions,
+  treeHasCloudUpdate,
+  anyCloudUpdates,
   listShares,
   addShare,
   removeShare,
@@ -59,7 +62,8 @@ let viewState = {};
 let pendingScroll = null;
 let scrollPersistTimer;
 let confirmResolver = null;
-let transitionResolver = null;
+let topicWorkspaceResolver = null;
+let topicWorkspaceContext = null;
 const inspectorFoldState = {};
 let positions = {};
 let contentW = 0;
@@ -244,31 +248,156 @@ function formatShortDate(iso) {
   }
 }
 
-function closeTransition(result) {
-  $('transitionDialog').close();
-  if (transitionResolver) {
-    transitionResolver(result);
-    transitionResolver = null;
-  }
+function levelMoveLabel(fromLevel, fromSuggested) {
+  if (fromSuggested) return 'Gap · suggested';
+  if (fromLevel === null) return 'Gap';
+  return LEVEL_SHORT[fromLevel];
 }
 
-function showTransitionDialog({ fromLevel, toLevel, fromSuggested, topicName }) {
+function appendTopicNote(n, body) {
+  ensureTopicMeta(n);
+  if (n.notes.length >= 100) {
+    notify('At most 100 notes per topic.');
+    return false;
+  }
+  const trimmed = (body || '').trim();
+  if (!trimmed) return false;
+  n.notes.push({ id: uid(), body: trimmed, at: new Date().toISOString() });
+  return true;
+}
+
+function renderTopicWorkspaceNotes(n, editable) {
+  ensureTopicMeta(n);
+  if (!n.notes.length) {
+    return '<p class="tw-empty">No learning material yet. Add links, summaries, or reminders below.</p>';
+  }
+  let html = '';
+  [...n.notes].reverse().forEach((note) => {
+    html += '<article class="tw-note-card">';
+    if (editable) {
+      html +=
+        '<button type="button" class="note-remove" data-note-id="' +
+        esc(note.id) +
+        '" aria-label="Remove note">×</button>';
+    }
+    html +=
+      '<p class="tw-note-date">' +
+      esc(formatShortDate(note.at)) +
+      '</p><p class="note-body">' +
+      esc(note.body) +
+      '</p></article>';
+  });
+  return html;
+}
+
+function renderTopicWorkspaceHistory(n) {
+  ensureTopicMeta(n);
+  let html = '';
+  const currentDwell = timeInCurrentLevel(n);
+  if (currentDwell !== null) {
+    html +=
+      '<p class="tw-history-meta">Currently ' +
+      esc(levelShortLabel(n.level, n.suggested)) +
+      ' · ' +
+      esc(formatDuration(currentDwell)) +
+      '</p>';
+  }
+  if (!n.transitions.length) {
+    html += '<p class="tw-empty">No level moves recorded yet.</p>';
+    return html;
+  }
+  [...n.transitions].reverse().forEach((tr) => {
+    const idx = n.transitions.indexOf(tr);
+    const dwell = dwellBeforeTransition(n.transitions, idx);
+    html += '<article class="tw-history-card">';
+    html +=
+      '<span class="history-levels">' +
+      esc(transitionLabel(tr.from, tr.to)) +
+      '</span><span class="history-when">' +
+      esc(formatShortDate(tr.at)) +
+      '</span>';
+    if (tr.note) html += '<p class="history-note">' + esc(tr.note) + '</p>';
+    if (dwell !== null) html += '<p class="history-dwell">' + esc(formatDuration(dwell)) + ' in previous stage</p>';
+    html += '</article>';
+  });
+  return html;
+}
+
+function refreshTopicWorkspacePanels(n, editable) {
+  $('twNotesList').innerHTML = renderTopicWorkspaceNotes(n, editable);
+  $('twHistoryList').innerHTML = renderTopicWorkspaceHistory(n);
+  $('twNotesCount').textContent = n.notes.length ? String(n.notes.length) : '0';
+  $('twNotesList').querySelectorAll('.note-remove').forEach((btn) => {
+    btn.onclick = () => {
+      ensureTopicMeta(n);
+      n.notes = n.notes.filter((note) => note.id !== btn.dataset.noteId);
+      commit();
+      refreshTopicWorkspacePanels(n, editable);
+      render();
+    };
+  });
+}
+
+function closeTopicWorkspace(result) {
+  $('topicWorkspaceDialog').close();
+  if (topicWorkspaceResolver) {
+    topicWorkspaceResolver(result);
+    topicWorkspaceResolver = null;
+  }
+  topicWorkspaceContext = null;
+}
+
+function showTopicWorkspace(n, options = {}) {
+  const mode = options.mode || 'notes';
+  const editable = options.editable !== false && canEdit();
   return new Promise((resolve) => {
-    if (transitionResolver) transitionResolver(null);
-    transitionResolver = resolve;
-    const fromText = fromSuggested
-      ? 'Gap · suggested'
-      : fromLevel === null
-        ? 'Gap'
-        : LEVEL_SHORT[fromLevel];
-    $('transitionTitle').textContent = 'Move to ' + LEVEL_SHORT[toLevel];
-    $('transitionHint').textContent = '“' + topicName + '” · ' + fromText + ' → ' + LEVEL_SHORT[toLevel];
-    $('transitionNoteLabel').textContent = 'Short note (optional)';
-    $('transitionNote').placeholder = 'Anything — why you moved';
-    $('transitionNote').value = '';
-    message('transitionMessage', '');
-    showDialog('transitionDialog');
-    $('transitionNote').focus();
+    if (topicWorkspaceResolver) topicWorkspaceResolver(null);
+    topicWorkspaceResolver = resolve;
+    topicWorkspaceContext = { n, mode, editable, ...options };
+
+    const fromText = levelMoveLabel(options.fromLevel, options.fromSuggested);
+    const toText = LEVEL_SHORT[options.toLevel];
+
+    if (mode === 'transition') {
+      $('twEyebrow').textContent = 'Level change';
+      $('twTitle').textContent = n.name;
+      $('twHint').textContent = 'Review your learning material, then confirm the move.';
+      $('twMovePill').hidden = false;
+      $('twMoveFrom').textContent = fromText;
+      $('twMoveTo').textContent = toText;
+      $('twTransitionBlock').hidden = false;
+      $('twMoveNote').value = '';
+      $('twSubmit').textContent = 'Confirm move to ' + toText;
+      $('twCancel').textContent = 'Cancel';
+    } else if (mode === 'welcome') {
+      $('twEyebrow').textContent = 'New topic';
+      $('twTitle').textContent = n.name;
+      $('twHint').textContent = 'Add links or notes for what you want to learn here.';
+      $('twMovePill').hidden = true;
+      $('twTransitionBlock').hidden = true;
+      $('twSubmit').textContent = 'Done';
+      $('twCancel').textContent = 'Skip for now';
+    } else {
+      $('twEyebrow').textContent = 'Topic';
+      $('twTitle').textContent = n.name;
+      $('twHint').textContent = editable
+        ? 'Learning material and level history for this topic.'
+        : 'Read-only view of learning material and history.';
+      $('twMovePill').hidden = true;
+      $('twTransitionBlock').hidden = true;
+      $('twSubmit').textContent = 'Done';
+      $('twCancel').textContent = 'Close';
+    }
+
+    $('twLearningNote').value = '';
+    $('twAddNoteSection').hidden = !editable;
+    const showCompose = editable || mode === 'transition';
+    $('twComposeSection').hidden = !showCompose;
+    $('twComposeSection').classList.toggle('tw-compose-single', !(editable && mode === 'transition'));
+    message('twMessage', '');
+    refreshTopicWorkspacePanels(n, editable);
+    showDialog('topicWorkspaceDialog');
+    (mode === 'transition' ? $('twMoveNote') : $('twLearningNote')).focus();
   });
 }
 
@@ -283,16 +412,23 @@ async function requestLevelChange(n, toLevel) {
     notify('Kept as gap.');
     return;
   }
-  const note = await showTransitionDialog({
+  const result = await showTopicWorkspace(n, {
+    mode: 'transition',
     fromLevel,
     toLevel,
     fromSuggested,
-    topicName: n.name,
   });
-  if (note === null) return;
-  recordTransition(n, toLevel, note);
+  if (result === null) return;
+  recordTransition(n, toLevel, result.moveNote || '');
+  if (result.learningNote) appendTopicNote(n, result.learningNote);
+  inspectorFoldState[n.id + ':notes'] = true;
   commit();
   notify('Moved to ' + LEVEL_SHORT[toLevel] + '.');
+}
+
+async function openTopicNotesModal(n) {
+  if (!n) return;
+  await showTopicWorkspace(n, { mode: 'notes', editable: canEdit() });
 }
 
 function renderInspectorFold(nodeId, foldId, title, badge, bodyHtml) {
@@ -336,6 +472,8 @@ function renderNotesBody(n, editable) {
   } else if (!n.notes.length) {
     html += '<p class="insp-empty">No notes yet.</p>';
   }
+  html +=
+    '<button type="button" class="btn ghost insp-open-notes" id="openNotesModal">Open full view</button>';
   return html;
 }
 
@@ -389,17 +527,14 @@ function wireInspectorSections(n) {
   if ($('topicNoteForm')) {
     $('topicNoteForm').onsubmit = (ev) => {
       ev.preventDefault();
-      ensureTopicMeta(n);
-      if (n.notes.length >= 100) {
-        notify('At most 100 notes per topic.');
-        return;
-      }
-      const body = $('topicNoteBody').value.trim();
-      if (!body) return;
-      n.notes.push({ id: uid(), body, at: new Date().toISOString() });
+      if (!appendTopicNote(n, $('topicNoteBody').value)) return;
       inspectorFoldState[n.id + ':notes'] = true;
+      $('topicNoteBody').value = '';
       commit();
     };
+  }
+  if ($('openNotesModal')) {
+    $('openNotesModal').onclick = () => openTopicNotesModal(n);
   }
 }
 
@@ -419,10 +554,12 @@ function renderTreeList() {
       TREE_ICON +
       '</span><span class="meta"><span class="name">' +
       esc(t.name) +
+      (treeHasCloudUpdate(t) ? '<span class="tree-item-update">Update</span>' : '') +
       '</span><span class="count">' +
       allNodes(t).length +
       ' topics' +
       (t.sample ? ' · sample' : '') +
+      (treeHasCloudUpdate(t) ? ' · cloud update' : '') +
       '</span></span>';
     b.onclick = () => {
       saveCurrentView();
@@ -508,7 +645,15 @@ function leaveHelp() {
 
 function renderTopbar() {
   const dirty = trees.some((item) => item.syncDirty);
-  $('syncDot').hidden = !dirty;
+  const cloudUpdates = anyCloudUpdates(trees);
+  $('syncUploadDot').hidden = !dirty;
+  $('syncCloudDot').hidden = !cloudUpdates;
+  let syncTitle = 'Sync to cloud';
+  if (dirty && cloudUpdates) syncTitle = 'Upload your changes and pull cloud updates';
+  else if (dirty) syncTitle = 'Upload your changes to the cloud';
+  else if (cloudUpdates) syncTitle = 'Cloud has updates — tap to sync';
+  $('syncBtn').title = syncTitle;
+  $('syncBtn').setAttribute('aria-label', syncTitle);
   if (appView === 'help') {
     const topic = helpScreenId ? getHelpTopic(helpScreenId) : null;
     $('crumbTitle').textContent = topic ? topic.title : 'Help';
@@ -929,11 +1074,13 @@ function renderInspector() {
         $('branchMessage').textContent = 'That name already exists here.';
         return;
       }
-      kids.push(freshTopic(name));
+      const created = freshTopic(name);
+      kids.push(created);
       if (!isRoot) n.suggested = false;
+      selectedNodeId = created.id;
       commit();
-      $('inspBranch').focus();
       notify(name + ' added.');
+      showTopicWorkspace(created, { mode: 'welcome' });
     };
   }
 }
@@ -1141,6 +1288,13 @@ async function enterApp() {
   renderAccountUI();
   render();
   persist();
+  try {
+    await refreshCloudVersions();
+    renderTopbar();
+    renderTreeList();
+  } catch {
+    /* offline or not signed in to cloud yet */
+  }
 }
 
 async function exitApp() {
@@ -1185,13 +1339,30 @@ async function handleSync(force = false) {
         }
       }
     }
+    try {
+      await refreshCloudVersions();
+    } catch {
+      /* keep merge result versions */
+    }
     render();
     persist();
-    notify(
-      summary.uploaded
-        ? 'Synced ' + summary.uploaded + ' tree(s) to the cloud.'
-        : 'Cloud trees are up to date.'
-    );
+    let message = summary.uploaded
+      ? 'Synced ' + summary.uploaded + ' tree(s) to the cloud.'
+      : 'Cloud trees are up to date.';
+    const emails = summary.emailsSent;
+    if (emails && (emails.progress > 0 || emails.collaborator > 0)) {
+      const parts = [];
+      if (emails.progress > 0) {
+        parts.push(
+          emails.progress === 1
+            ? '1 view-progress collaborator emailed'
+            : emails.progress + ' view-progress collaborators emailed'
+        );
+      }
+      if (emails.collaborator > 0) parts.push('owner emailed about your edit');
+      message += ' ' + parts.join('; ') + '.';
+    }
+    notify(message);
   } catch (e) {
     notify(e.message || 'Sync failed.');
   }
@@ -1238,6 +1409,15 @@ async function refreshShareList() {
   }
 }
 
+function getSharePermission() {
+  return document.querySelector('input[name="sharePermission"]:checked')?.value || 'view';
+}
+
+function setSharePermission(value) {
+  const input = document.querySelector('input[name="sharePermission"][value="' + value + '"]');
+  if (input) input.checked = true;
+}
+
 async function openShareDialog() {
   const t = tree();
   if (!t.cloudId || t.cloudRole !== 'owner') {
@@ -1245,7 +1425,7 @@ async function openShareDialog() {
     return;
   }
   $('shareEmail').value = '';
-  $('sharePermission').value = 'view';
+  setSharePermission('view');
   $('shareMessage').textContent = '';
   $('shareMessage').classList.remove('error');
   try {
@@ -1311,12 +1491,28 @@ async function boot() {
   $('confirmCancel').onclick = () => closeConfirm(false);
   $('confirmClose').onclick = () => closeConfirm(false);
   $('confirmDialog').addEventListener('cancel', () => closeConfirm(false));
-  $('transitionCancel').onclick = () => closeTransition(null);
-  $('transitionClose').onclick = () => closeTransition(null);
-  $('transitionDialog').addEventListener('cancel', () => closeTransition(null));
-  $('transitionForm').onsubmit = (ev) => {
+  $('twCancel').onclick = () => closeTopicWorkspace(null);
+  $('twClose').onclick = () => closeTopicWorkspace(null);
+  $('topicWorkspaceDialog').addEventListener('cancel', () => closeTopicWorkspace(null));
+  $('topicWorkspaceForm').onsubmit = (ev) => {
     ev.preventDefault();
-    closeTransition($('transitionNote').value.trim());
+    const ctx = topicWorkspaceContext;
+    if (!ctx) return closeTopicWorkspace(null);
+    const learningNote = $('twLearningNote').value.trim();
+    if (ctx.mode === 'transition') {
+      closeTopicWorkspace({
+        moveNote: $('twMoveNote').value.trim(),
+        learningNote,
+      });
+      return;
+    }
+    if (learningNote) {
+      appendTopicNote(ctx.n, learningNote);
+      inspectorFoldState[ctx.n.id + ':notes'] = true;
+      commit();
+      render();
+    }
+    closeTopicWorkspace(true);
   };
   document.querySelectorAll('[data-mode]').forEach((b) => {
     b.onclick = () => chooseMode(b.dataset.mode);
@@ -1489,6 +1685,11 @@ async function boot() {
         const n = freshTopic(name);
         tree().topics.push(n);
         selectedNodeId = n.id;
+        $('nameDialog').close();
+        commit();
+        notify('Topic added.');
+        showTopicWorkspace(n, { mode: 'welcome' });
+        return;
       } else if (found.kind === 'root') {
         if (trees.some((t) => t !== tree() && t.name.toLowerCase() === name.toLowerCase())) {
           throw new Error('Another tree already uses that name.');
@@ -1549,7 +1750,7 @@ async function boot() {
     const t = tree();
     const invited = $('shareEmail').value.trim();
     try {
-      const result = await addShare(t.cloudId, invited, $('sharePermission').value);
+      const result = await addShare(t.cloudId, invited, getSharePermission());
       $('shareEmail').value = '';
       if (result.emailSent) {
         $('shareMessage').textContent = 'Invite sent — we emailed ' + invited + '.';

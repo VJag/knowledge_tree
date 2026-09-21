@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.config import Settings
 from app.db import get_conn
@@ -10,6 +10,8 @@ from app.models import TreeAccess, User
 from app.services.email_service import EmailDeliveryError, EmailService
 
 logger = logging.getLogger("knowledgetree.trees")
+
+UPDATE_EMAIL_THROTTLE = timedelta(hours=24)
 
 
 def _utc_now() -> datetime:
@@ -176,9 +178,11 @@ class TreesService:
         *,
         trees: list[dict],
         force: bool = False,
+        app_url: str | None = None,
     ) -> dict:
         uploaded: list[dict] = []
         conflicts: list[dict] = []
+        emails_sent = {"progress": 0, "collaborator": 0}
 
         for item in trees:
             cloud_id = (item.get("cloudId") or item.get("cloud_id") or "").strip() or None
@@ -234,12 +238,22 @@ class TreesService:
                     "updatedAt": result.updated_at,
                 }
             )
+            counts = self._notify_after_tree_update(
+                user,
+                tree_id=result.id,
+                tree_name=result.name,
+                role=result.role,
+                app_url=app_url,
+            )
+            emails_sent["progress"] += counts.get("progress", 0)
+            emails_sent["collaborator"] += counts.get("collaborator", 0)
 
         remote = self.list_accessible(user)
         return {
             "uploaded": uploaded,
             "conflicts": conflicts,
             "remote": [self._serialize_access(t) for t in remote],
+            "emailsSent": emails_sent,
         }
 
     def list_shares(self, user: User, tree_id: str) -> list[dict]:
@@ -301,6 +315,15 @@ class TreesService:
                     (normalized,),
                 ).fetchone()
 
+            previous = conn.execute(
+                """
+                SELECT permission FROM tree_shares
+                WHERE tree_id = %s AND user_id = %s
+                """,
+                (tree_id, grantee["id"]),
+            ).fetchone()
+            previous_permission = previous["permission"] if previous else None
+
             conn.execute(
                 """
                 INSERT INTO tree_shares (tree_id, user_id, permission)
@@ -334,14 +357,53 @@ class TreesService:
         else:
             result["emailWarning"] = "Email is not configured on this server."
 
+        if (
+            previous_permission
+            and previous_permission != permission
+            and mailer.configured
+        ):
+            try:
+                mailer.send_share_permission_changed(
+                    to_email=grantee["email"],
+                    owner_email=user.email,
+                    tree_name=tree_name,
+                    permission=permission,
+                    app_url=app_url,
+                )
+                result["permissionEmailSent"] = True
+            except EmailDeliveryError as exc:
+                logger.warning(
+                    "share_permission_email_failed tree=%s to=%s",
+                    tree_id,
+                    grantee["email"],
+                )
+                result["permissionEmailWarning"] = str(exc)
+
         return result
 
-    def remove_share(self, user: User, tree_id: str, *, email: str) -> None:
+    def remove_share(
+        self,
+        user: User,
+        tree_id: str,
+        *,
+        email: str,
+        app_url: str | None = None,
+    ) -> None:
         access = self._get_access(user, tree_id)
         if not access or access.role != "owner":
             raise PermissionError("Only the owner can manage shares.")
         normalized = _normalize_email(email)
+        tree_name = access.name
         with get_conn(self.settings) as conn:
+            grantee = conn.execute(
+                """
+                SELECT u.id, u.email
+                FROM tree_shares ts
+                JOIN users u ON u.id = ts.user_id
+                WHERE ts.tree_id = %s AND LOWER(u.email) = LOWER(%s)
+                """,
+                (tree_id, normalized),
+            ).fetchone()
             conn.execute(
                 """
                 DELETE FROM tree_shares ts
@@ -353,6 +415,23 @@ class TreesService:
                 (tree_id, normalized),
             )
             conn.commit()
+
+        if grantee:
+            mailer = EmailService(self.settings)
+            if mailer.configured:
+                try:
+                    mailer.send_share_removed(
+                        to_email=grantee["email"],
+                        owner_email=user.email,
+                        tree_name=tree_name,
+                        app_url=app_url,
+                    )
+                except EmailDeliveryError:
+                    logger.warning(
+                        "share_removed_email_failed tree=%s to=%s",
+                        tree_id,
+                        grantee["email"],
+                    )
 
     def _get_access(self, user: User, tree_id: str) -> TreeAccess | None:
         with get_conn(self.settings) as conn:
@@ -395,3 +474,162 @@ class TreesService:
             "updatedAt": access.updated_at,
             "ownerEmail": access.owner_email,
         }
+
+    def _notify_after_tree_update(
+        self,
+        actor: User,
+        *,
+        tree_id: str,
+        tree_name: str,
+        role: str,
+        app_url: str | None,
+    ) -> dict:
+        mailer = EmailService(self.settings)
+        if not mailer.configured:
+            return {"progress": 0, "collaborator": 0}
+
+        if role == "owner":
+            return {"progress": self._email_view_sharees_progress_update(
+                actor, tree_id=tree_id, tree_name=tree_name, app_url=app_url, mailer=mailer
+            ), "collaborator": 0}
+        if role == "edit":
+            return {
+                "progress": 0,
+                "collaborator": self._email_owner_collaborator_update(
+                    actor, tree_id=tree_id, tree_name=tree_name, app_url=app_url, mailer=mailer
+                ),
+            }
+        return {"progress": 0, "collaborator": 0}
+
+    def _should_send_update_notice(
+        self, conn, *, tree_id: str, recipient_user_id: str, notice_kind: str
+    ) -> bool:
+        row = conn.execute(
+            """
+            SELECT sent_at FROM tree_update_notices
+            WHERE tree_id = %s AND recipient_user_id = %s AND notice_kind = %s
+            """,
+            (tree_id, recipient_user_id, notice_kind),
+        ).fetchone()
+        if not row:
+            return True
+        sent_at = row["sent_at"]
+        if sent_at.tzinfo is None:
+            sent_at = sent_at.replace(tzinfo=timezone.utc)
+        return sent_at <= _utc_now() - UPDATE_EMAIL_THROTTLE
+
+    def _record_update_notice(
+        self, conn, *, tree_id: str, recipient_user_id: str, notice_kind: str
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO tree_update_notices (tree_id, recipient_user_id, notice_kind, sent_at)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (tree_id, recipient_user_id, notice_kind)
+            DO UPDATE SET sent_at = EXCLUDED.sent_at
+            """,
+            (tree_id, recipient_user_id, notice_kind, _utc_now()),
+        )
+
+    def _email_view_sharees_progress_update(
+        self,
+        owner: User,
+        *,
+        tree_id: str,
+        tree_name: str,
+        app_url: str | None,
+        mailer: EmailService,
+    ) -> int:
+        sent = 0
+        with get_conn(self.settings) as conn:
+            rows = conn.execute(
+                """
+                SELECT u.id, u.email
+                FROM tree_shares ts
+                JOIN users u ON u.id = ts.user_id
+                WHERE ts.tree_id = %s AND ts.permission = 'view'
+                """,
+                (tree_id,),
+            ).fetchall()
+            for row in rows:
+                if not self._should_send_update_notice(
+                    conn,
+                    tree_id=tree_id,
+                    recipient_user_id=str(row["id"]),
+                    notice_kind="progress_update",
+                ):
+                    continue
+                try:
+                    mailer.send_progress_update(
+                        to_email=row["email"],
+                        owner_email=owner.email,
+                        tree_name=tree_name,
+                        app_url=app_url,
+                    )
+                    self._record_update_notice(
+                        conn,
+                        tree_id=tree_id,
+                        recipient_user_id=str(row["id"]),
+                        notice_kind="progress_update",
+                    )
+                    sent += 1
+                except EmailDeliveryError:
+                    logger.warning(
+                        "progress_update_email_failed tree=%s to=%s",
+                        tree_id,
+                        row["email"],
+                    )
+            conn.commit()
+        return sent
+
+    def _email_owner_collaborator_update(
+        self,
+        editor: User,
+        *,
+        tree_id: str,
+        tree_name: str,
+        app_url: str | None,
+        mailer: EmailService,
+    ) -> int:
+        with get_conn(self.settings) as conn:
+            owner = conn.execute(
+                """
+                SELECT u.id, u.email
+                FROM trees t
+                JOIN users u ON u.id = t.owner_id
+                WHERE t.id = %s
+                """,
+                (tree_id,),
+            ).fetchone()
+            if not owner or str(owner["id"]) == editor.id:
+                return 0
+            if not self._should_send_update_notice(
+                conn,
+                tree_id=tree_id,
+                recipient_user_id=str(owner["id"]),
+                notice_kind="collaborator_update",
+            ):
+                return 0
+            try:
+                mailer.send_collaborator_update(
+                    to_email=owner["email"],
+                    editor_email=editor.email,
+                    tree_name=tree_name,
+                    app_url=app_url,
+                )
+                self._record_update_notice(
+                    conn,
+                    tree_id=tree_id,
+                    recipient_user_id=str(owner["id"]),
+                    notice_kind="collaborator_update",
+                )
+                conn.commit()
+                return 1
+            except EmailDeliveryError:
+                logger.warning(
+                    "collaborator_update_email_failed tree=%s to=%s",
+                    tree_id,
+                    owner["email"],
+                )
+                conn.commit()
+                return 0

@@ -23,10 +23,30 @@ def test_sync_success(mock_service_cls, mock_user, client):
         "uploaded": [],
         "conflicts": [],
         "remote": [],
+        "emailsSent": {"progress": 0, "collaborator": 0},
     }
     res = client.post("/api/trees/sync", json={"trees": [], "force": False})
     assert res.status_code == 200
-    assert res.json()["ok"] is True
+    data = res.json()
+    assert data["ok"] is True
+    assert data["emailsSent"]["progress"] == 0
+    mock_service_cls.return_value.sync.assert_called_once()
+    assert mock_service_cls.return_value.sync.call_args.kwargs.get("app_url")
+
+
+@patch("app.deps.get_optional_user")
+@patch("app.routes.trees.TreesService")
+def test_sync_returns_email_counts(mock_service_cls, mock_user, client):
+    mock_user.return_value = User(id="u1", email="owner@example.com", name=None)
+    mock_service_cls.return_value.sync.return_value = {
+        "uploaded": [{"cloudId": "t1"}],
+        "conflicts": [],
+        "remote": [],
+        "emailsSent": {"progress": 2, "collaborator": 0},
+    }
+    res = client.post("/api/trees/sync", json={"trees": []})
+    assert res.status_code == 200
+    assert res.json()["emailsSent"] == {"progress": 2, "collaborator": 0}
 
 
 @patch("app.deps.get_optional_user")

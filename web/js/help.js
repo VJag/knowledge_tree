@@ -203,6 +203,7 @@ export const HELP_TOPICS = [
         heading: 'When to sync',
         bullets: [
           'Before sharing a tree (sharing requires a cloud copy).',
+          'When the sync icon shows a green dot — the cloud has updates you have not pulled yet.',
           'After editing on another device that synced to the cloud.',
           'When you want a server backup of local-only work.',
           'After recording progress you want a mentor or collaborator to see.',
@@ -244,10 +245,13 @@ export const HELP_TOPICS = [
         ],
       },
       {
-        heading: 'Invite email',
-        paragraphs: [
-          'When email is configured on the server (same Resend setup as sign-in codes), we send an invite with the map name and permission.',
-          'If email fails or is not configured, access is still granted — tell them to sign in with the invited address and tap Sync.',
+        heading: 'Emails from KnowledgeTree',
+        bullets: [
+          'Invite — when you first share a tree (map name + permission).',
+          'Progress update — when the owner syncs, view-progress collaborators may get one email per day asking them to Sync.',
+          'Collaborator update — when someone with Can edit syncs, the owner may get one email per day.',
+          'Access changed or removed — when you update permission or remove someone.',
+          'If email is not configured, sharing still works — tell people to sign in and tap Sync.',
         ],
       },
       {

@@ -5,6 +5,9 @@ import {
   treesForSync,
   dedupeWorkspaceTrees,
   mergeSyncResult,
+  setRemoteVersionsFromList,
+  treeHasCloudUpdate,
+  anyCloudUpdates,
 } from '../js/sync.js';
 import { freshTree } from '../js/model.js';
 
@@ -48,6 +51,26 @@ describe('dedupeWorkspaceTrees', () => {
     assert.equal(result.length, 2);
     assert.equal(result.some((t) => t.cloudId === 'c1'), true);
     assert.equal(result.some((t) => t.name === 'Other'), true);
+  });
+});
+
+describe('cloud update detection', () => {
+  it('detects when cloud version is newer than local', () => {
+    const t = freshTree('Shared');
+    t.cloudId = 'cloud-1';
+    t.cloudVersion = 2;
+    setRemoteVersionsFromList([{ cloudId: 'cloud-1', version: 4 }]);
+    assert.equal(treeHasCloudUpdate(t), true);
+    assert.equal(anyCloudUpdates([t]), true);
+  });
+
+  it('ignores updates when local copy is dirty', () => {
+    const t = freshTree('Shared');
+    t.cloudId = 'cloud-1';
+    t.cloudVersion = 1;
+    t.syncDirty = true;
+    setRemoteVersionsFromList([{ cloudId: 'cloud-1', version: 3 }]);
+    assert.equal(treeHasCloudUpdate(t), false);
   });
 });
 
@@ -97,6 +120,17 @@ describe('mergeSyncResult', () => {
     assert.equal(trees.length, 1);
     assert.equal(trees[0].cloudRole, 'view');
     assert.equal(trees[0].ownerEmail, 'owner@example.com');
+  });
+
+  it('surfaces email counts from sync response', () => {
+    const local = freshTree('Mine');
+    local.id = 'local-1';
+    const result = mergeSyncResult([local], {
+      uploaded: [],
+      remote: [],
+      emailsSent: { progress: 2, collaborator: 1 },
+    });
+    assert.deepEqual(result.emailsSent, { progress: 2, collaborator: 1 });
   });
 
   it('reports conflict count from server', () => {

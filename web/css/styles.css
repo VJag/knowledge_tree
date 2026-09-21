@@ -205,7 +205,10 @@ h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.5px;}
 .icon-btn:hover{color:var(--ink);border-color:color-mix(in oklab,var(--accent) 40%,var(--line));background:var(--panel-hi)}
 .sidebar-head .sidebar-toggle-btn{width:32px;height:32px;border-radius:9px;}
 .sidebar-head .sidebar-toggle-btn svg{width:16px;height:16px;}
-.sync-dot{position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 2px var(--panel-raised)}
+.sync-dot{position:absolute;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 2px var(--panel-raised)}
+.sync-dot-upload{top:7px;right:7px;background:var(--accent-2)}
+.sync-dot-download{top:7px;right:17px;background:var(--mint-deep)}
+.tree-item-update{font-size:10px;font-weight:700;color:var(--mint-deep);margin-left:6px}
 .menu-wrap{position:relative}
 .dropdown-menu{
   position:absolute;top:calc(100% + 6px);right:0;min-width:220px;
@@ -650,6 +653,29 @@ button.btn.primary:hover{filter:brightness(1.08)}
 .btn.icon-edit svg{width:15px;height:15px;pointer-events:none}
 .role-chip{font-size:11.5px;font-weight:700;color:var(--ink-dim);background:var(--panel-raised);border:1px solid var(--line);border-radius:20px;padding:4px 9px;white-space:nowrap}
 .app.read-only #addTopicBtn,.app.read-only #renameMenuItem,.app.read-only #deleteTreeMenuItem{display:none}
+.share-perm-field{border:0;margin:16px 0 0;padding:0;display:grid;gap:8px;min-width:0}
+.share-perm-legend{
+  font-size:12px;font-weight:600;color:var(--ink-dim);padding:0;margin:0;float:left;
+}
+.share-perm-choices{display:grid;gap:8px;margin-top:0}
+.share-perm-choice{
+  display:flex;align-items:flex-start;gap:12px;padding:14px 14px 14px 12px;
+  border:1px solid var(--line);border-radius:12px;background:var(--panel-raised);
+  cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s;
+}
+.share-perm-choice:hover{border-color:color-mix(in oklab,var(--accent) 35%,var(--line))}
+.share-perm-choice input{
+  flex:none;width:16px;height:16px;margin:2px 0 0;accent-color:var(--accent);cursor:pointer;
+}
+.share-perm-choice:has(input:checked){
+  border-color:var(--accent);
+  background:color-mix(in oklab,var(--accent) 8%,var(--panel-hi));
+  box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--accent) 18%,transparent);
+}
+.share-perm-choice-body{min-width:0;flex:1}
+.share-perm-choice-body strong{display:block;font-size:13px;font-weight:600;color:var(--ink)}
+.share-perm-choice-body small{display:block;font-size:12px;color:var(--ink-dim);line-height:1.5;margin-top:3px}
+
 .share-invite,.share-access{margin-top:4px}
 .share-section-title{font-size:13px;font-weight:700;margin:0 0 10px;letter-spacing:-.15px;color:var(--ink);}
 .share-section-note{font-size:12px;line-height:1.55;color:var(--muted);margin:0 0 12px;}
@@ -672,6 +698,111 @@ button.btn.primary:hover{filter:brightness(1.08)}
 }
 .share-perm-chip.edit{background:color-mix(in oklab,var(--mint) 14%,transparent);color:var(--mint-deep);border-color:color-mix(in oklab,var(--mint) 30%,var(--line));}
 .share-row .btn.ghost{font-size:11px;padding:6px 10px;flex:none}
+
+/* ---- topic workspace modal ---- */
+.topic-workspace-dialog{
+  width:min(920px,calc(100vw - 24px));
+  max-height:min(92dvh,920px);
+  overflow:hidden;
+}
+.topic-workspace-body{
+  display:flex;flex-direction:column;gap:0;
+  padding:28px 30px 24px;max-height:min(92dvh,920px);overflow:hidden;
+}
+.topic-workspace-body .dialog-top{flex:none;margin-bottom:0}
+.topic-workspace-body .dialog-footer{flex:none;margin-top:16px;padding-top:16px}
+.topic-workspace-body .form-message{flex:none;margin-top:8px}
+.tw-head{min-width:0;padding-right:8px}
+.tw-eyebrow{
+  font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 6px;
+}
+.tw-head h2{font-size:clamp(1.35rem,2.5vw,1.65rem);line-height:1.15;margin:0 0 6px;letter-spacing:-.3px}
+.tw-head p{font-size:13.5px;color:var(--ink-dim);margin:0;line-height:1.5}
+.tw-move-pill{
+  display:inline-flex;align-items:center;gap:10px;margin-top:12px;
+  padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;
+  background:color-mix(in oklab,var(--accent) 10%,var(--panel));
+  border:1px solid color-mix(in oklab,var(--accent) 28%,var(--line));
+  color:var(--ink);
+}
+.tw-move-arrow{color:var(--muted);font-weight:400}
+.tw-body{
+  flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;
+  margin-top:20px;overflow:hidden;
+}
+.tw-grid{
+  flex:1;min-height:0;display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);
+  gap:14px;align-items:stretch;
+}
+.tw-panel{
+  display:flex;flex-direction:column;min-height:0;height:100%;
+  border:1px solid var(--line);border-radius:16px;
+  background:color-mix(in oklab,var(--bg-canvas) 88%,var(--panel));
+  overflow:hidden;
+}
+.tw-panel-head{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  background:color-mix(in oklab,var(--panel) 70%,transparent);
+}
+.tw-panel-head h3{margin:0;font-size:13px;font-weight:700;letter-spacing:-.1px}
+.tw-count{font-size:11px;font-weight:700;color:var(--muted);padding:3px 8px;border-radius:999px;background:var(--panel-raised);border:1px solid var(--line)}
+.tw-scroll{flex:1;min-height:0;overflow:auto;padding:12px 14px;-webkit-overflow-scrolling:touch}
+.tw-notes-scroll .tw-empty,.tw-history-scroll .tw-empty{
+  font-size:13px;color:var(--muted);line-height:1.55;margin:8px 4px;text-align:center;padding:24px 12px;
+}
+.tw-note-card{
+  position:relative;padding:14px 16px 12px;border-radius:12px;margin-bottom:10px;
+  background:var(--panel);border:1px solid var(--line);
+}
+.tw-note-card:last-child{margin-bottom:0}
+.tw-note-date{font-size:11px;color:var(--muted);margin:0 0 8px}
+.tw-note-card .note-body{font-size:14px;line-height:1.6;color:var(--ink);margin:0;white-space:pre-wrap;padding-right:22px}
+.tw-note-card .note-remove{
+  position:absolute;top:8px;right:8px;background:var(--panel-hi);border:1px solid var(--line);
+  border-radius:8px;width:28px;height:28px;font-size:16px;color:var(--muted);cursor:pointer;
+}
+.tw-note-card .note-remove:hover{color:var(--gap);border-color:color-mix(in oklab,var(--gap) 40%,var(--line))}
+.tw-history-card{
+  padding:12px 14px;border-radius:12px;margin-bottom:10px;
+  background:var(--panel);border:1px solid var(--line);
+}
+.tw-history-card:last-child{margin-bottom:0}
+.tw-history-card .history-levels{font-size:13.5px;font-weight:600;color:var(--ink)}
+.tw-history-card .history-when{font-size:11.5px;color:var(--muted);margin-top:2px;display:block}
+.tw-history-card .history-note{font-size:13px;line-height:1.55;color:var(--ink-dim);margin:8px 0 0;white-space:pre-wrap}
+.tw-history-card .history-dwell{font-size:11px;color:var(--muted);margin:4px 0 0}
+.tw-history-meta{font-size:12.5px;color:var(--muted);margin:0 0 10px;padding:0 2px;line-height:1.5}
+.tw-compose{
+  flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;
+  padding:14px 16px;border:1px solid var(--line);border-radius:16px;
+  background:color-mix(in oklab,var(--panel) 65%,transparent);
+}
+.tw-compose.tw-compose-single{grid-template-columns:1fr}
+.tw-compose[hidden]{display:none !important}
+.tw-compose-field{display:flex;flex-direction:column;gap:8px;min-width:0}
+.tw-compose-field[hidden]{display:none !important}
+.tw-compose-field label{font-size:12px;font-weight:600;color:var(--ink-dim)}
+.tw-compose-field textarea{
+  width:100%;resize:vertical;border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;background:var(--panel);color:var(--ink);
+  font-family:inherit;font-size:14px;line-height:1.55;min-height:88px;max-height:160px;
+  box-sizing:border-box;
+}
+.tw-compose-field textarea:focus-visible{
+  outline:2px solid color-mix(in oklab,var(--accent) 45%,transparent);outline-offset:1px;
+}
+.insp-open-notes{
+  width:100%;margin-top:4px;padding:9px 12px;font-size:12px;justify-content:center;
+}
+@media(max-width:760px){
+  .topic-workspace-body{padding:20px 18px 18px}
+  .tw-grid{grid-template-columns:1fr;flex:none;max-height:min(42dvh,360px)}
+  .tw-compose{grid-template-columns:1fr}
+}
+
 body.in-app{overflow:hidden}
 .landing{position:relative;z-index:1;min-height:100vh;display:grid;place-items:center;padding:28px 20px}
 .landing-inner{width:min(1080px,100%);display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:36px;align-items:center}
