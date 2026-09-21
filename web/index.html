@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KnowledgeTree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<div class="landing" id="landing">
+  <div class="landing-inner">
+    <div class="landing-copy">
+      <div class="brand landing-brand">
+        <span class="mark" aria-hidden="true"></span>
+        KnowledgeTree
+      </div>
+      <h1 class="landing-headline">Know what you don't know.</h1>
+      <form id="homeAuthForm" class="landing-auth">
+        <div id="homeEmailStep">
+          <div class="modal-field"><label for="homeEmail">Email</label><input id="homeEmail" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        </div>
+        <div id="homeCodeStep" hidden>
+          <div class="modal-field"><label for="homeCode">Sign-in code</label><input id="homeCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code"></div>
+        </div>
+        <div class="form-message" id="homeAuthMessage" role="status"></div>
+        <button type="submit" class="btn primary landing-submit" id="homeAuthSubmit">Send code</button>
+      </form>
+    </div>
+    <div class="landing-preview-wrap" aria-hidden="true">
+      <div class="landing-preview" id="landingPreview"></div>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="appShell" hidden>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div class="brand-copy sidebar-label">
+          <span class="brand-text">KnowledgeTree</span>
+          <span class="brand-tagline">Know what you don't know.</span>
+        </div>
+      </div>
+      <button type="button" class="icon-btn sidebar-toggle-btn" id="sidebarCollapseBtn" aria-label="Close sidebar" title="Close sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18"/></svg>
+      </button>
+    </div>
+
+    <button type="button" class="sidebar-new" id="newTreeBtn" title="New topic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <span class="sidebar-label">New topic</span>
+    </button>
+
+    <div class="trees-head">
+      <span class="sidebar-label">MY TREES</span>
+    </div>
+    <div class="tree-list" id="treeList"></div>
+    <div class="sidebar-foot">
+      <div class="account-email sidebar-label" id="accountEmail"></div>
+      <div class="save-note sidebar-label" id="saveNote" role="status">Saved on this device only · cloud is optional</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="tb-left">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <button type="button" class="icon-btn sidebar-open-btn" id="sidebarOpenBtn" hidden aria-label="Open sidebar" title="Open sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18"/></svg>
+        </button>
+        <button type="button" class="icon-btn help-back-btn" id="helpBackBtn" hidden aria-label="Back to workspace" title="Back to workspace">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div class="tree-ic" id="tbTreeIcon"></div>
+        <div class="tb-meta">
+          <h1 id="crumbTitle">AI engineering</h1>
+          <div class="tb-sub">
+            <span class="stats" id="crumbStats"></span>
+            <span class="role-chip" id="roleChip" hidden></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn primary" id="addTopicBtn" type="button" title="New topic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span class="btn-label">New topic</span>
+        </button>
+        <button class="icon-btn" id="syncBtn" type="button" title="Sync to cloud" aria-label="Sync to cloud">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          <span class="sync-dot" id="syncDot" hidden aria-hidden="true"></span>
+        </button>
+        <div class="menu-wrap">
+          <button class="icon-btn" id="topMenuBtn" type="button" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+          <div class="dropdown-menu" id="topMenu" role="menu" hidden>
+            <button type="button" class="menu-item" id="shareMenuItem" role="menuitem" hidden>
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/></svg></span>
+              <span class="menu-label">Share tree</span>
+            </button>
+            <button type="button" class="menu-item" id="exportMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></span>
+              <span class="menu-label">Export JSON</span>
+            </button>
+            <button type="button" class="menu-item" id="renameMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+              <span class="menu-label">Rename tree</span>
+            </button>
+            <button type="button" class="menu-item menu-item-danger" id="deleteTreeMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>
+              <span class="menu-label">Delete</span>
+            </button>
+            <div class="menu-divider" role="separator"></div>
+            <button type="button" class="menu-item" id="importMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg></span>
+              <span class="menu-label">Import JSON</span>
+            </button>
+            <button type="button" class="menu-item" id="samplesMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+              <span class="menu-label">Sample trees</span>
+            </button>
+            <button type="button" class="menu-item" id="newTreeMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+              <span class="menu-label">New topic</span>
+            </button>
+            <div class="menu-divider" role="separator"></div>
+            <button type="button" class="menu-item" id="helpMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-.7.6-1.7 1.3-1.7 2.7"/><path d="M12 17h.01"/></svg></span>
+              <span class="menu-label">Help</span>
+            </button>
+            <button type="button" class="menu-item menu-item-muted" id="signOutMenuItem" role="menuitem">
+              <span class="menu-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></span>
+              <span class="menu-label">Sign out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="renameTreeBtn" hidden aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 5 5L8 21H3v-5L16 3ZM13 6l5 5"/></svg>
+    </button>
+
+    <div class="main-views">
+      <div class="workspace-view" id="workspaceView">
+        <div class="build-body">
+          <div class="canvas-scroll" id="canvasScroll">
+            <div class="canvas-extent" id="canvasExtent">
+              <div class="canvas" id="canvas">
+                <svg class="edges" id="edges"></svg>
+                <div id="nodesLayer"></div>
+              </div>
+            </div>
+            <div class="zoom-controls">
+              <button id="zoomOut" aria-label="Zoom out">−</button>
+              <span class="zpct" id="zoomPct">100%</span>
+              <button id="zoomIn" aria-label="Zoom in">+</button>
+              <button id="zoomFit" aria-label="Reset zoom" style="font-size:11px;">Fit</button>
+            </div>
+          </div>
+          <aside class="inspector" id="inspector"></aside>
+        </div>
+
+        <div class="legend">
+          <span class="key"><span class="ic" style="background:var(--gap)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><ellipse cx="12" cy="15" rx="3" ry="4"/><path d="M7 19h10"/></svg></span>Gap · suggested</span>
+          <span class="key"><span class="ic" style="background:color-mix(in oklab, var(--mint) 20%, var(--panel-raised))"><svg viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="1.8" stroke-linecap="round"><path d="M12 19V13"/><path d="M12 13c0-3-2.4-4.2-5.2-3.8.2 3 2.3 4.4 5.2 3.8Z"/><path d="M7 19h10"/></svg></span>Theory only</span>
+          <span class="key"><span class="ic" style="background:color-mix(in oklab, var(--mint) 40%, transparent)"><svg viewBox="0 0 24 24" fill="none" stroke="#eafff8" stroke-width="1.8" stroke-linecap="round"><path d="M12 19V10.5"/><path d="M12 13c0-3-2.4-4.2-5.2-3.8.2 3 2.3 4.4 5.2 3.8Z"/><path d="M12 10.5c0-3 2.4-4.2 5.2-3.8-.2 3-2.3 4.4-5.2 3.8Z"/><path d="M7 19h10"/></svg></span>Practising</span>
+          <span class="key"><span class="ic" style="background:var(--mint-deep)"><svg viewBox="0 0 24 24" fill="none" stroke="#eafff8" stroke-width="1.6" stroke-linecap="round"><path d="M12 19V12"/><circle cx="8.6" cy="9" r="3.3" fill="#eafff8" stroke="none"/><circle cx="15.4" cy="9" r="3.1" fill="#eafff8" stroke="none"/><circle cx="12" cy="6.2" r="3.5" fill="#eafff8" stroke="none"/><circle cx="9.6" cy="7.6" r="2" fill="#eafff8" stroke="none" opacity=".55"/><circle cx="14.6" cy="7.3" r="1.9" fill="#eafff8" stroke="none" opacity=".55"/><path d="M7 19h10"/></svg></span>Learnt</span>
+        </div>
+      </div>
+
+      <section class="help-page" id="helpView" hidden aria-labelledby="helpTitle">
+        <div class="help-page-inner" id="helpRoot"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<dialog id="createDialog" aria-labelledby="createTitle">
+  <form id="createForm" class="dialog-body">
+    <div class="dialog-top">
+      <div><h2 id="createTitle">Plant a new tree</h2><p>A space for something you want to understand.</p></div>
+      <button type="button" class="dialog-close" data-close="createDialog" aria-label="Close">×</button>
+    </div>
+    <div class="create-tabs" role="group" aria-label="How to create your tree">
+      <button type="button" data-mode="blank" aria-pressed="true">Start fresh</button>
+      <button type="button" data-mode="sample" aria-pressed="false">Use a sample</button>
+      <button type="button" data-mode="json" aria-pressed="false">From JSON</button>
+    </div>
+    <div id="samplePanel" hidden><div class="samples" id="sampleChoices"></div><p class="format-help">Editable examples with illustrative learning levels.</p></div>
+    <div id="namedPanel">
+      <div class="modal-field"><label for="treeName">Tree name</label><input id="treeName" maxlength="80" placeholder="e.g. Databases, cooking, astronomy" autocomplete="off"></div>
+      <div class="root-preview"><span id="rootPreviewIcon"></span><div><strong id="rootPreviewName">Your tree</strong><small>Your first node · rename it anytime</small></div></div>
+    </div>
+    <div id="jsonPanel" hidden>
+      <div class="import-actions">
+        <button type="button" class="btn" id="chooseJSON">Choose .json file</button>
+        <button type="button" class="btn ghost" id="loadExample">Load example</button>
+        <button type="button" class="btn ghost" id="downloadExample">Download example</button>
+      </div>
+      <input type="file" id="jsonFile" accept=".json,application/json" hidden>
+      <div class="modal-field"><label for="jsonText">Or paste a tree or workspace</label><textarea id="jsonText" spellcheck="false" placeholder='{"name":"My learning tree","topics":[]}'></textarea></div>
+      <details class="format-help">
+        <summary>JSON format</summary>
+        <p>A tree needs a <code>name</code> and optional <code>topics</code>. Each topic has a <code>name</code>, <code>level</code> (0 gap, 1 theory, 2 practising, 3 learnt), and optional nested <code>children</code>. Set <code>suggested: true</code> for a suggested gap. IDs are generated for you.</p>
+        <p>Workspace exports contain <code>{"version":1,"trees":[...]}</code>. Import adds copies; existing trees stay in place. Up to 30 trees, 1,000 topics, 12 levels, and 1 MB per import.</p>
+      </details>
+    </div>
+    <div class="form-message" id="createMessage" role="status" aria-live="polite"></div>
+    <div class="dialog-footer">
+      <button type="button" class="btn ghost" data-close="createDialog">Cancel</button>
+      <button type="submit" class="btn primary" id="createSubmit">Create tree</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="exportDialog" aria-labelledby="exportTitle">
+  <form id="exportForm" class="dialog-body">
+    <div class="dialog-top">
+      <div><h2 id="exportTitle">Take your trees with you</h2><p>Download JSON to back up, share, or import later.</p></div>
+      <button type="button" class="dialog-close" data-close="exportDialog" aria-label="Close">×</button>
+    </div>
+    <label class="export-choice"><input type="radio" name="exportScope" value="current" checked><span><strong id="exportCurrentName">Current tree</strong><small>Levels, notes, history, and canvas positions.</small></span></label>
+    <label class="export-choice"><input type="radio" name="exportScope" value="all"><span><strong>All my trees</strong><small id="exportAllCount"></small></span></label>
+    <div class="dialog-footer">
+      <button type="button" class="btn ghost" data-close="exportDialog">Cancel</button>
+      <button type="submit" class="btn primary">Download JSON</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="nameDialog" aria-labelledby="nameTitle">
+  <form id="nameForm" class="dialog-body">
+    <div class="dialog-top">
+      <div><h2 id="nameTitle">Rename tree</h2><p id="nameHint">The tree and its root node share the same name.</p></div>
+      <button type="button" class="dialog-close" data-close="nameDialog" aria-label="Close">×</button>
+    </div>
+    <div class="modal-field"><label for="nodeName">Name</label><input id="nodeName" maxlength="80" required autocomplete="off"></div>
+    <div id="nameMessage" class="form-message" role="status"></div>
+    <div class="dialog-footer">
+      <button type="button" class="btn ghost" data-close="nameDialog">Cancel</button>
+      <button type="submit" class="btn primary" id="nameSubmit">Save name</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="transitionDialog" aria-labelledby="transitionTitle" class="transition-dialog">
+  <form id="transitionForm" class="dialog-body">
+    <div class="dialog-top">
+      <div>
+        <h2 id="transitionTitle">Record this move</h2>
+        <p id="transitionHint"></p>
+      </div>
+      <button type="button" class="dialog-close" id="transitionClose" aria-label="Close">×</button>
+    </div>
+    <div class="modal-field">
+      <label for="transitionNote" id="transitionNoteLabel">What changed?</label>
+      <textarea id="transitionNote" maxlength="500" rows="4" placeholder="What made you ready to move?"></textarea>
+    </div>
+    <div class="form-message" id="transitionMessage" role="status"></div>
+    <div class="dialog-footer">
+      <button type="button" class="btn ghost" id="transitionCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="transitionOk">Confirm move</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="confirmDialog" aria-labelledby="confirmTitle" class="confirm-dialog">
+  <div class="dialog-body">
+    <div class="dialog-top">
+      <div>
+        <h2 id="confirmTitle">Confirm</h2>
+        <p id="confirmMessage"></p>
+      </div>
+      <button type="button" class="dialog-close" id="confirmClose" aria-label="Close">×</button>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn ghost" id="confirmCancel">Cancel</button>
+      <button type="button" class="btn primary" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="shareDialog" aria-labelledby="shareTitle">
+  <form id="shareForm" class="dialog-body">
+    <div class="dialog-top">
+      <div><h2 id="shareTitle">Share this tree</h2><p>Invite someone by email — view progress or edit access.</p></div>
+      <button type="button" class="dialog-close" data-close="shareDialog" aria-label="Close">×</button>
+    </div>
+    <div class="share-invite">
+      <h3 class="share-section-title">Invite someone</h3>
+      <div class="modal-field"><label for="shareEmail">Email</label><input id="shareEmail" type="email" required placeholder="collaborator@example.com" autocomplete="email"></div>
+      <div class="modal-field"><label for="sharePermission">Permission</label>
+        <select id="sharePermission">
+          <option value="view">View progress — map, levels, notes, and history</option>
+          <option value="edit">Can edit — add, change, and delete topics</option>
+        </select>
+      </div>
+    </div>
+    <div class="share-access">
+      <h3 class="share-section-title">People with access</h3>
+      <p class="share-section-note">View progress lets someone read your map, notes, and level history — but not edit. We email an invite when sharing is enabled on the server; they sign in with that address and tap <strong>Sync</strong>.</p>
+      <div class="share-list" id="shareList"></div>
+      <p class="share-empty" id="shareEmpty" hidden>No one else has access yet.</p>
+    </div>
+    <div class="form-message" id="shareMessage" role="status"></div>
+    <div class="dialog-footer">
+      <button type="button" class="btn ghost" data-close="shareDialog">Close</button>
+      <button type="submit" class="btn primary">Invite</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
