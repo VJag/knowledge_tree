@@ -1,0 +1,9 @@
+{
+  "name": "knowledgetree",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bash scripts/run-js-tests.sh",
+    "test:watch": "bash scripts/run-js-tests.sh --watch"
+  }
+}
