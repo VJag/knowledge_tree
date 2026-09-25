@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
-DEFAULT_URL = "postgresql://jagannadh@127.0.0.1:5432/knowledgetree"
+DEFAULT_URL = "postgresql://postgres:postgres@127.0.0.1:5432/knowledgetree"
 
 
 def admin_url(database_url: str) -> tuple[str, str]:
